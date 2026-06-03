@@ -1,51 +1,10 @@
 using JuMP
 using CPLEX
 
-function read_file(file_path::String)
-    lines = readlines(file_path)
+include("ReadInstance.jl")
+using .ReadInstance
 
-    # Lettura inteestazione file
-    header = split(lines[1])
-    num_nodi = parse(Int, header[1])
-    s_node = parse(Int, header[3])
-    t_node = parse(Int, header[4])
-    k_max = parse(Int, header[2])
-    
-    # Lettura Gradi di ogni nodo dal file
-    gradi = zeros(Int, num_nodi)
-    for i in 1:num_nodi
-        gradi[i] = parse(Int, split(lines[i+1])[1])
-    end
-
-    V = Set{Int}(1:num_nodi)
-    C = Set{Int}()
-    A_set = Set{Tuple{Int, Int}}()
-    d = Dict{Tuple{Int, Int}, Float64}()
-    c = Dict{Tuple{Int, Int}, Int}()
-
-    linea_corrente = num_nodi + 2
-    for u in 1:num_nodi
-        for _ in 1:gradi[u]
-            parts = split(lines[linea_corrente])
-            v = parse(Int, parts[1])
-            costo = parse(Float64, parts[2])
-            colore = parse(Int, parts[3])
-            
-            push!(C, colore)
-            push!(A_set, (u, v))
-            d[(u, v)] = costo
-            c[(u, v)] = colore
-            linea_corrente += 1
-        end
-    end
-    A = collect(A_set)
-    return V, C, A, d, c, s_node, t_node, k_max
-end
-
-function risolvi_cplex(file_path::String)
-    
-    V, C, A, d, c, s_node, t_node, k_max = read_file(file_path)
-    
+function risolvi(V, C, A, d, c, s_node, t_node, k_max)
     # Popolamento dizionare contenente archi entrata N^+ e e archi uscita N^-
     in_arcs = Dict(u => Tuple{Int,Int}[] for u in V)
     out_arcs = Dict(u => Tuple{Int,Int}[] for u in V)
@@ -85,44 +44,50 @@ function risolvi_cplex(file_path::String)
     return status, obj_val, tempo_totale
 end
 
-function esegui_esperimento(file_path::String)
+function batch_execution(file_path::String, instance_type::String = "ferrone")
+    tempo_tot = 0.0
+    risolte   = 0
 
-    tempo_totale_gruppo = 0.0
-    istanze_risolte = 0
-    
-    for seed in 27000:27009
-        nome_file = "$(file_path)_$seed.txt"
-        if !isfile(nome_file)
-            continue
+    if instance_type == "castro" 
+        seed_range = 1:60
+    else
+        seed_range = 27000:27200
+    end
+
+    for seed in seed_range
+        nome = "$(file_path)$seed.txt"
+        !isfile(nome) && continue
+
+        print("Risoluzione di $nome in corso... ")
+        if instance_type == "castro"
+            V, C, A, d, c, s_node, t_node, k_max = read_castro_instance(nome)
+        else
+            V, C, A, d, c, s_node, t_node, k_max = read_ferrone_instance(nome)
         end
-        
-        print("Risoluzione di $nome_file in corso... ")
-        
-        status, obj, tempo = risolvi_cplex(nome_file)
-        
+
+        status, obj, tempo = risolvi(V, C, A, d, c, s_node, t_node, k_max)
+
         if status == MOI.OPTIMAL
             println("OTTIMO (z = $obj) | Tempo: $(round(tempo, digits=4)) sec")
-            tempo_totale_gruppo += tempo
-            istanze_risolte += 1
+            tempo_tot += tempo
+            risolte   += 1
+        elseif status == MOI.TIME_LIMIT
+            println("TIME LIMIT")
         elseif status == MOI.INFEASIBLE
             println("INFEASIBLE | Tempo: $(round(tempo, digits=4)) sec")
         else
             println("ERRORE ($status) | Tempo: $(round(tempo, digits=4)) sec")
         end
     end
-    
-    if istanze_risolte > 0
-        tempo_medio = tempo_totale_gruppo / istanze_risolte
-        println("\n==================================================")
-        println("              RISULTATI FINALI                     ")
-        println("==================================================")
-        println("Istanze ottime trovate : $istanze_risolte")
-        println("Tempo totale di calcolo: ", round(tempo_totale_gruppo, digits=4), " sec")
-        println("TEMPO MEDIO: ", round(tempo_medio, digits=4), " sec")
-        println("==================================================")
+
+    if risolte > 0
+        println("Istanze ottime trovate : $risolte")
+        println("Tempo totale di calcolo: $(round(tempo_tot,   digits=4)) sec")
+        println("Average Time           : $(round(tempo_tot/risolte, digits=4)) sec")
     else
-        println("\nNessuna istanza risolta con successo (controlla i file).")
+        println("\nNessuna istanza risolta con successo (controlla i file o i thread).")
     end
 end
 
-esegui_esperimento("k-color-instances/Small/Grid/Grid_100x100_396/Grid_100x100_396")
+#batch_execution("ferrone-instances/Small/Grid/Grid_100x100_396/Grid_100x100_396_", seed_range=27000:27009)
+batch_execution("castro-instances/", "castro")
