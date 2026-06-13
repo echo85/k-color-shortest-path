@@ -21,9 +21,9 @@ This project explores a bi-directional alternative to existing mono-directional 
 
 ## Instances & Benchmarks
 The algorithm is evaluated against existing methodologies (Mono-directional DP, Valid Inequalities Branch-and-Cut, CPLEX) on several benchmark sets:
-1.  **Random and Grid Digraphs (Ferone et al., 2019):** 
-2.  **Layered-based Digraphs (Castro et al., 2024):** 
-3.  **Labyrinth Instances (Newly Generated):** 
+1.  **Random and Grid Digraphs (Ferone et al., 2019)** 
+2.  **Layered-based Digraphs (Castro et al., 2024)** 
+3.  **Labyrinth Instances (Newly Generated)** 
 
 ### Report of the Projecthttps://github.com/echo85/k-color-shortest-path/blob/main/report.pdf
 [Link to Report](https://github.com/echo85/k-color-shortest-path/blob/main/report.pdf)
