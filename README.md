@@ -17,7 +17,7 @@ This project explores a bi-directional alternative to existing mono-directional 
 ## Implementation Details
 * **Language:** Julia 1.12.6
 * **Modeling Framework:** JuMP
-* **Solver (for baselines):** IBM ILOG CPLEX 22.1 (Configured with 1 thread)
+* **Solver:** IBM ILOG CPLEX 22.1 
 
 ## Instances
 The algorithm is evaluated against existing methodologies (Mono-directional DP, Valid Inequalities Branch-and-Cut, CPLEX) on several benchmark sets:
