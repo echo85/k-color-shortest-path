@@ -96,11 +96,11 @@ function scrivi_istanza_txt(nome_file::String, n, m, s, t, k, num_colors, A, d_c
     println("$nome_file | Nodi: $n, Archi: $m, k_max: $k, Colori totali trappola: $(k*2)")
 end
 
-n, m, s, t, k, c, A, d, col = genera_labirinto_frazionario(20, 25, 4)
-scrivi_istanza_txt("instances/test/6.txt", n, m, s, t, k, c, A, d, col)
+n, m, s, t, k, c, A, d, col = genera_labirinto_frazionario(70, 35, 30)
+scrivi_istanza_txt("new-instances/12.txt", n, m, s, t, k, c, A, d, col)
 
-n, m, s, t, k, c, A, d, col = genera_labirinto_frazionario(20, 25, 15)
-scrivi_istanza_txt("instances/test/7.txt", n, m, s, t, k, c, A, d, col)
+n, m, s, t, k, c, A, d, col = genera_labirinto_frazionario(80, 45, 40)
+scrivi_istanza_txt("new-instances/13.txt", n, m, s, t, k, c, A, d, col)
 
-n, m, s, t, k, c, A, d, col = genera_labirinto_frazionario(30, 35, 20)
-scrivi_istanza_txt("instances/test/8.txt", n, m, s, t, k, c, A, d, col)
+n, m, s, t, k, c, A, d, col = genera_labirinto_frazionario(90, 55, 50)
+scrivi_istanza_txt("new-instances/14.txt", n, m, s, t, k, c, A, d, col)

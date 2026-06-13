@@ -8,7 +8,7 @@ mutable struct Label
     node::Int
     dist::Float64
     colors::BitSet
-    path::Vector{Int}
+    parent::Union{Nothing, Label}
 end
 
 function riduzione_grafo(V_set, A, d_cost, c_color, s_node, t_node, k_max)
@@ -108,30 +108,23 @@ function riduzione_grafo(V_set, A, d_cost, c_color, s_node, t_node, k_max)
         end
     end
 
-    #println("   [Riduzione] UB trovato (CCDA): ", UB == Inf ? "Nessuno" : UB)
-    println("   [Riduzione] Archi originali: $(length(A)) -> Archi rimanenti: $(length(A_ridotto))")
-
+    print("[Rid CCDA]", UB == Inf ? "N\\A" : UB)
+    print(" Archi:$(length(A))->$(length(A_ridotto)) ")
     # Restituiamo il grafo ridotto, il vettore delle euristiche h e l'UB trovato
     return A_ridotto, h, UB
 end
 
-# Funzione per determinare se l1 domina l2 (Definition 2)
 function domina(l1::Label, l2::Label)
-    # l1 domina l2 se ha costo minore/uguale, è sottoinsieme di colori
-    # e almeno una delle due condizioni è strettamente minore
-    if l1.dist <= l2.dist && issubset(l1.colors, l2.colors)
-        if l1.dist < l2.dist || length(l1.colors) < length(l2.colors)
-            return true
-        elseif l1.dist == l2.dist && length(l1.colors) == length(l2.colors)
-            # A parità assoluta (stesso costo e stessi identici colori), 
-            # consideriamo che la prima domini l'altra per evitare percorsi ridondanti.
-            return true
+    # Filtro Cardinale: se l1 ha più colori di l2, non può dominarlo sui colori
+    if l1.dist <= l2.dist && length(l1.colors) <= length(l2.colors)
+        if issubset(l1.colors, l2.colors)
+            return true # l1 è strettamente uguale o migliore sotto tutti i punti di vista
         end
     end
     return false
 end
 
-function risolvi(V_set, C_set, A, d_cost, c_color, s_node, t_node, k_max, time_limit::Float64=2000.0)
+function risolvi(V_set, C_set, A, d_cost, c_color, s_node, t_node, k_max, time_limit::Float64=600.0)
     
     # APPLICAZIONE DELLA RIDUZIONE IN VIA PRELIMINARE
     A_ridotto, h, UB = riduzione_grafo(V_set, A, d_cost, c_color, s_node, t_node, k_max)
@@ -155,7 +148,7 @@ function risolvi(V_set, C_set, A, d_cost, c_color, s_node, t_node, k_max, time_l
     L = PriorityQueue{Label, Float64}() 
     
     # Inizializzazione nodo sorgente
-    l_s = Label(s_node, 0.0, BitSet(), [s_node]) 
+    l_s = Label(s_node, 0.0, BitSet(), nothing) 
     push!(D[s_node], l_s) # Inserimento nelle non dominate del nodo sorgente
 
     # segue la regola di ordinamento A* f(i) = d_i + h(i)
@@ -180,17 +173,15 @@ function risolvi(V_set, C_set, A, d_cost, c_color, s_node, t_node, k_max, time_l
                 best_cost = current_label.dist
                 break
             else
-                # Per ogni nodo j collegato ad i calcoliamo la nuova label (espansione vicini)
                 for (j, w_ij, col_ij) in adj[i] 
-                    new_dist = current_label.dist + w_ij # Costo nuova distanza
+                    new_dist = current_label.dist + w_ij 
+                    if new_dist + h[j] >= best_cost
+                        continue
+                    end
                     new_colors = copy(current_label.colors)
-                    push!(new_colors, col_ij) # Inseriamo il nuovo colore dell'arco
-                    
-                    new_path = copy(current_label.path)
-                    push!(new_path, j)
+                    push!(new_colors, col_ij) 
 
-                    # (Algoritmo 2) AddLabel
-                    l_j = Label(j, new_dist, new_colors, new_path)
+                    l_j = Label(j, new_dist, new_colors, current_label)
                     add_label(D,L,l_j, k_max,h)
                 end
             end
@@ -209,7 +200,7 @@ end
 function add_label(D,L,l_j,k_max,h)
     if length(l_j.colors) <= k_max # Feasibility check
         is_dominated = false
-        labels_to_remove = Int[]
+        labels_to_remove = Label[] 
         j = l_j.node
                         
         # Controllo Dominanza nell'insieme D[j]
@@ -218,7 +209,7 @@ function add_label(D,L,l_j,k_max,h)
                 is_dominated = true
                 break
             elseif domina(l_j, l_exist)
-                push!(labels_to_remove, idx)
+                push!(labels_to_remove, l_exist)
             end
         end
         
@@ -252,7 +243,7 @@ function batch_execution(file_path::String, instance_type::String = "ferrone")
         nome = "$(file_path)$seed.txt"
         !isfile(nome) && continue
 
-        println("Risoluzione di $nome in corso... ")
+        print("Solving $nome... ")
         if instance_type == "castro"
             V, C, A, d, c, s_node, t_node, k_max = read_castro_instance(nome)
         else
@@ -274,20 +265,22 @@ function batch_execution(file_path::String, instance_type::String = "ferrone")
         end
     end
 
-    if risolte > 0
-        println("Istanze ottime trovate : $risolte")
-        println("Tempo totale di calcolo: $(round(tempo_tot,   digits=4)) sec")
-        println("Average Time           : $(round(tempo_tot/risolte, digits=4)) sec")
-    else
-        println("\nNessuna istanza risolta con successo (controlla i file o i thread).")
-    end
+    # if risolte > 0
+    #     println("Istanze ottime trovate : $risolte")
+    #     println("Tempo totale di calcolo: $(round(tempo_tot,   digits=4)) sec")
+    #     println("Average Time           : $(round(tempo_tot/risolte, digits=4)) sec")
+    # else
+    #     println("\nNessuna istanza risolta con successo (controlla i file o i thread).")
+    # end
 end
 
 
-#batch_execution("extra/full_ferone-instances/Big/Testing/Grid/Grid_250x500_99700/Grid_250x500_99700_", "ferrone") # time limit  on 27006 
-#batch_execution("ferone-instances/R1/Random_75000x750000_112500_", "ferrone")
-#batch_execution("ferone-instances/R3/Random_75000x750000_150000_", "ferrone")
-#batch_execution("ferone-instances/G1/Grid_100x100_5940_", "ferrone")
-#batch_execution("ferone-instances/G3/Grid_100x200_11910_", "ferrone")
-#batch_execution("castro-instances/", "castro")
+batch_execution("ferone-instances/R1/Random_75000x750000_112500_", "ferrone")
+batch_execution("ferone-instances/R3/Random_75000x750000_150000_", "ferrone")
+batch_execution("ferone-instances/R9/Random_125000x2500000_500000_", "ferrone")
+batch_execution("ferone-instances/G1/Grid_100x100_5940_", "ferrone")
+batch_execution("ferone-instances/G3/Grid_100x200_11910_", "ferrone")
+batch_execution("ferone-instances/G4/Grid_250x500_99700_", "ferrone") 
+batch_execution("ferone-instances/G6/Grid_500x1000_39940_", "ferrone")
 batch_execution("new-instances/", "castro")
+batch_execution("castro-instances/", "castro")
