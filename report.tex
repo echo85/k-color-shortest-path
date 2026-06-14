@@ -36,11 +36,11 @@
     The $k$-color Shortest Path Problem ($k$-CSPP) is an NP-hard optimization challenge that involves 
     finding the minimum-cost path between a source and a destination in an edge-colored graph while 
     using at most $k$ distinct colors. This report proposes and evaluates a bounded bi-directional 
-    dynamic programming (BDP) approach to optimally solve the $k$-CSPP as an alternative to existing 
+    dynamic programming (BDP) approach to solve the $k$-CSPP as an alternative to existing 
     mono-directional dynamic programming methods. 
     Computational experiments demonstrate that BDP maintains competitive execution times on 
-    standard random and grid graphs. Notably, on newly generated labyrinth instances 
-    designed to trap existing algorithms, BDP significantly outperforms both 
+    standard random and grid graphs. On newly generated labyrinth instances 
+    specifically designed to challenge existing algorithms, BDP significantly outperforms both 
     mono-directional DP and Valid Inequalities Branch-and-Cut methods by significantly reducing the required search space. 
     The report confirms that layered-based digraphs 
     remain challenging for dynamic programming techniques due to 
@@ -50,49 +50,57 @@
 \maketitle
 \section{Introduction}
 
-The project is focused on the optimization of the k-color Shortest Path Problem (k-CSPP),
-which is a variant of the classic Shortest Path Problem that we know
-can be solved in polynomial time. 
+The project is focused on the optimization of the k-color Shortest Path Problem \cite{Ferone2019} (k-CSPP) ,
+which is a variant of the classic Shortest Path Problem \cite{dijkstra1959} (SPP) that we know
+can be solved in polynomial time.
 
 This problem arises in many real-world applications: the design of reliable telecommunication networks, 
 multimodal transportation, obstacle minimization in robotics, and wavelength-routed optical networks. 
 
 The k-CSPP consists of finding a shortest path in a weighted edge-colored graph, where the maximum number of distinct colors
-that can be used is fixed to be $k$.
-Considering a digraph $D = (\mathcal{V},A)$ and a set of colors $C$, every edge $(i,j)$ has a positive cost $d_{ij}$ and color $c(i,j) \in C$.
+that can appear in the path is fixed to be $k$.
+Considering a digraph $D = (\mathcal{V},A)$ and a set of colors $C$, every arc $(i,j)$ has a positive cost $d_{ij}$ and color $c_{ij} \in C$.
 Given a source node $s$ and a target node $t$ ($s,t \in \mathcal{V}$), alongside a positive
 integer $k$, the k-CSPP consists of finding an $(s,t)$-path of minimum cost
 while using at most $k$ distinct arc colors. 
 
 The first formal definition of the k-color Shortest Path Problem was presented by Ferone et al. (2019) \cite{Ferone2019}.
-They proposed a mathematical model based on a flow formulation.
+
 Existing methodologies include a Branch \& Bound algorithm (B\&B) \cite{Ferone2019}, a dynamic programming approach with an A*-like technique (DP) \cite{Ferone2021}, 
 a near-optimal heuristic called color-constrained Dijkstra (CCDA) with an instance reduction graph procedure (GRA) \cite{CerroneRusso2023}, 
-and a Branch \& Cut procedure with new Valid Inequalities \cite{Castro2024} that seems to perform better on newly generated challenging instances.
+and a Branch \& Cut procedure with new Valid Inequalities \cite{Castro2024} that seems to perform better on new layered digraph generated challenging instances.
 
-The goal of this project is to evaluate a possible alternative algorithm to face this problem by using a Bi-directional
-Dynamic Programming approach. We will evaluate the limits of this technique across different types of instances and
-test it on a variety of instances.
+The goal of this project is to evaluate a possible alternative algorithm to face the k-CSPP which is an NP-Hard combinatorial problem 
+by extending the Dynamic Programming and using a Bounded Bi-directional Dynamic Programming (BDP) approach (Righini et al. 2006 \cite{righini2006}). 
+
+We will evaluate the limits of this technique across different benchmark instances already used in the literature (Table \ref{tab:ferone-instances}) and
+on a newly generated set of instances designed to challenge existing solutions (Table \ref{tab:unified-instances}).
+
+The proposed BDP approach maintained competitive execution times on standard random and grid digraphs (Table \ref{tab:numerical_results_ferone}), 
+while on the newly generated labyrinth instances, BDP outperformed both mono-directional DP and Valid Inequalities Branch-and-Cut methods (Table \ref{tab:numerical_results_new}).  
+
+The evaluation successfully mapped the boundaries of the approach, confirming that layered-based digraphs remain 
+challenging for dynamic programming techniques due to the combinatorial explosion (Table \ref{tab:numerical_results_castro}).
 
 \section{Problem Formulation}
 
 The mathematical model, based on a flow formulation, is presented here to clarify the characteristics of the problem (\cite{Ferone2019}). 
 
-Let $G$ be a graph $D = (\mathcal{V}, A)$, with $|\mathcal{V}|$ nodes and $|A|$ arcs. $C : A \to \mathbb{Z}^+$ and
-$d : A \to \mathbb{R}$ are two functions: the first is an arc-coloring function,
+Let $G$ be a digraph $D = (\mathcal{V}, A)$, with $|\mathcal{V}|$ nodes and $|A|$ arcs. Given two functions $C : A \to \mathbb{Z}^+$ and
+$d : A \to \mathbb{R}^+$: the first is an arc-coloring function,
 where the color of the arc $a$ is defined as a positive integer $C(a)$, $\forall a \in A$. 
 The second is a non-negative distance function defined for each arc $a \in A$. 
-We define $C= \cup_{a \in A} \{C(a)\}$ as the set containing all the colors
-of $G$. For each color $h \in C$, we define $A_h = \{a \in A \text{ s.t. } C(a) = h\}$ as the
+We define $\mathcal{C}= \cup_{a \in A} \{C(a)\}$ as the set containing all the colors
+of $G$. For each color $h \in \mathcal{C}$, we define $A_h = \{a \in A \text{ s.t. } C(a) = h\}$ as the
 set containing all the arcs with colors equal to $h$.
 
-The k-CSPP consists of finding a shortest path 
+The k-CSPP consists of finding a minimum distance path
 from a source node $s$ to a destination node $t$, with $s,t \in \mathcal{V}$, such
 that the number of different colors traversed on the path does not
 exceed $k$.
 
 First, let $x_{uv}$ $\forall (u,v) \in A$, be a binary decision variable to represent whether arc $(u,v)$ belongs to the solution ($x_{uv} = 1$) or not ($x_{uv} = 0$).
-Second, $\forall h \in C$, let $y_h$ be a binary decision variable to determine whether a color $h$ is in the solution ($y_h = 1$) or not ($y_h = 0$).
+Second, $\forall h \in \mathcal{C}$, let $y_h$ be a binary decision variable to determine whether a color $h$ is in the solution ($y_h = 1$) or not ($y_h = 0$).
 \begin{alignat}{3}
     \text{(FFP)}
  \min \quad & \sum_{(u,v) \in A} d_{uv}x_{uv} \label{eq:obj} \\
@@ -105,7 +113,7 @@ Second, $\forall h \in C$, let $y_h$ be a binary decision variable to determine 
 & x_{uv} \le y_{c(u,v)}, && \forall (u,v) \in A, \label{eq:capacity} \\
 & \sum_{h \in C} y_h \le k, && \label{eq:budget} \\
 & x_{uv} \in \{0, 1\}, && \forall (u,v) \in A, \label{eq:x_binary} \\
-& y_h \in \{0, 1\}, && \forall h \in C. \label{eq:y_binary}
+& y_h \in \{0, 1\}, && \forall h \in \mathcal{C}. \label{eq:y_binary}
 \end{alignat}
 
 The objective function \eqref{eq:obj} minimizes the cost of the $(s,t)$-path. The constraints in \eqref{eq:flow_cons} are the flow conservation constraints.
@@ -114,11 +122,8 @@ whose color is selected. Constraint \eqref{eq:budget} is used to limit the maxim
 number of usable colors to $k$. Finally, constraints \eqref{eq:x_binary} and \eqref{eq:y_binary} are used
 to define the Boolean domain of the decision variables.
 
-It is proven that finding a simple path $P$ from $s$ to $t$ in an edge-colored graph, such that 
-$c(P) \leq k$ with a given $k$, is an $\mathcal{NP}$-complete problem \cite{broersma2005paths}.
-
 \section{Solution Approach}
-In this section, we propose a bi-directional dynamic programming approach to optimally solve the k-CSPP,
+In this section, we propose a bi-directional dynamic programming approach to solve the k-CSPP,
 as an alternative to the mono-directional DP \cite{Ferone2021} already used to solve this problem. We will start
 by discussing the mono-directional DP approach and its complexity, and then we will detail the bi-directional solution.
 
@@ -129,7 +134,7 @@ of the path and $C_i$ is the set of distinct colors of the path $P_{si}$.
 Let $D(i)$ be defined as the set of all the labels $L_i$ associated with the different
 paths connecting $s$ to $i$.
 
-The exploration is based on the label correcting technique; the DP explores
+The exploration is based on the label correcting\footnote{label correcting maintains mutable labels that are progressively updated and pruned via dominance rules and bounding constraints until the search space converges} technique; the DP explores
 the solution space to extend the paths under construction by analyzing the
 set of their labels. The extension operation of a given path $P_{si}$ to a path $P_{sh}$
 is the result of the concatenation $(P_{si},[i,h])$ with $[i,h] \in A \setminus P_{si}$.
@@ -146,13 +151,13 @@ for a generic node $i$ is the one that presents the smallest
 value $(d_i + ssp_i)$, with $ssp_i$ being the simple shortest path (without color constraints) from the current node $i$ to the
 target node $t$.
 We can then consider an upper bound of the number of labels generated for each node as:
-$$N(k) = \sum_{l=1}^{k} \binom{|C|}{l}$$
+$$N(k) = \sum_{l=1}^{k} \binom{|\mathcal{C}|}{l}$$
 
 Consequently, an upper bound for the complexity of DP with the A* strategy is $O((|V |-2)\cdot N(k)^2)$ \cite{Ferone2021}.
 
 \subsection{Elementary and Dominance}
 
-The ($k$-CSPP) is defined on a graph where the distance function assigns a non-negative distance to each edge, therefore, the optimal shortest path will naturally be a simple (elementary) path.
+The ($k$-CSPP) is defined on a digraph where the distance function assigns a non-negative distance to each arc, therefore, the shortest path will naturally be a simple (elementary) path.
 
 In order to prune the search space efficiently, a dominance rule is applied to the labels generated during the dynamic programming execution. 
 
@@ -167,11 +172,11 @@ According to Ferone et al. (2021) \cite{Ferone2021}, the label $L_i$ dominates $
 with at least one condition being strictly satisfied.
 
 Furthermore, it is guaranteed \cite{Ferone2021} that extending a dominated path $\hat{P}_{si}$ will only ever yield a newly dominated path. 
-Because the problem assumes non-negative edge weights, any potential cycles formed during the extension of the dominant path $P_{si}$ can be naturally truncated. 
+Because the problem assumes non-negative arc weights, any potential cycles formed during the extension of the dominant path $P_{si}$ can be naturally truncated. 
 
-\section{Bi-Directional Solution}
-In the bi-directional dynamic programming (BDP) approach, the labels are extended both forward from vertex $s$ to
-its successors and backward from vertex $t$ to its predecessors. 
+\subsection{Bi-Directional Solution}
+In the bi-directional dynamic programming (BDP) approach, the labels are extended both forward from node $s$ to
+its successors and backward from node $t$ to its predecessors. 
 Backward states, extension functions, and dominance rules are symmetrical.
 Once the extension is completed, the forward and backward paths are joined to produce complete paths from node $s$ to node $t$,
 ensuring that the final path contains no cycles nor violates resource constraints. (Righini et al. (2006) \cite{righini2006})
@@ -180,7 +185,7 @@ In Algorithm \ref{alg:bidirectional}, we use bounding to recognize and fathom th
 produce optimal solutions, stopping the extension of forward and backward paths in order to reduce the number
 of generated states while preserving the guarantee that the optimal solution will be found. 
 
-This limitation, ensure that the bi-directional algorithm doesn't produce as many labels as the mono-directional one.
+This limitation, ensures that the bi-directional algorithm doesn't produce as many labels as the mono-directional one.
 
 \begin{algorithm}[H]
 \caption{Bounded Bi-directional Dynamic Programming}
@@ -198,14 +203,14 @@ This limitation, ensure that the bi-directional algorithm doesn't produce as man
 
 \STATE \textbf{// Search //}
 \WHILE{$E \neq \emptyset$}
-    \STATE \textbf{// Vertex selection //}
+    \STATE \textbf{// Node selection //}
     \STATE Select $i \in E$; $E \leftarrow E \setminus \{i\}$
     
     \STATE \textbf{// Forward extension //}
     \STATE Sort $\bar{\Gamma}_i^{fw}$ by non-decreasing number of colors
-    \FORALL{$L_i = (i, d^i, C^i) \in \bar{\Gamma}_i^{fw}$}
+    \FORALL{$L_i = (i, d_i, C_i) \in \bar{\Gamma}_i^{fw}$}
         \FORALL{$j \in \mathcal{V} : (i,j) \in A_r$}
-                \STATE $L_j \leftarrow Extend(d^i + w_{ij}, C^i \cup \{C([i,j])\}, k_{max}, h_j^{fw}, UB)$
+                \STATE $L_j \leftarrow Extend(d_i + w_{ij}, C_i \cup \{C([i,j])\}, k_{max}, h_j^{fw}, UB)$
                 \STATE $\Gamma_j^{fw} \leftarrow AddLabel(\Gamma_j^{fw}, L_j)$
                 \IF{$\bar{\Gamma}_j^{fw} \neq \emptyset$} 
                     \STATE $E \leftarrow E \cup \{j\}$ 
@@ -215,9 +220,9 @@ This limitation, ensure that the bi-directional algorithm doesn't produce as man
 
     \STATE \textbf{// Backward extension //}
     \STATE Sort $\bar{\Gamma}_i^{bw}$ by non-decreasing number of colors
-    \FORALL{$L_i = (i, d^i, C^i) \in \bar{\Gamma}_i^{bw}$}
+    \FORALL{$L_i = (i, d_i, C_i) \in \bar{\Gamma}_i^{bw}$}
         \FORALL{$j \in \mathcal{V} : (j,i) \in A_r$}
-                \STATE $L_j \leftarrow Extend(d^{i} + w_{ji}, C^i \cup \{C([j,i])\}, k_{max}, h_j^{bw}, UB)$
+                \STATE $L_j \leftarrow Extend(d_i + w_{ji}, C_i \cup \{C([j,i])\}, k_{max}, h_j^{bw}, UB)$
                 \STATE $\Gamma_j^{bw} \leftarrow AddLabel(\Gamma_j^{bw}, L_j)$
                 \IF{$\bar{\Gamma}_j^{bw} \neq \emptyset$} 
                     \STATE $E \leftarrow E \cup \{j\}$ 
@@ -230,12 +235,12 @@ This limitation, ensure that the bi-directional algorithm doesn't produce as man
 \end{algorithmic}
 \end{algorithm}
 
-The BDP algorithm is detailed in Algorithm \ref{alg:bidirectional}, representing a variation of the method proposed by \cite{righini2006}.
+The BDP Algorithm \ref{alg:bidirectional} is a variation of the method proposed by Righini et al. (2006) \cite{righini2006}.
 First, a graph reduction $A_r$ (GRA \cite{CerroneRusso2023}) and an upper bound are calculated (Line 2).
-For each vertex $i \in V$, we indicate with $\Gamma_i$ the set of labels associated with the vertex, with $\bar{\Gamma}_i \subseteq \Gamma_i$ being the
-subset of labels not extended so far. $E$ is the set of vertices to be explored;
-$Extend(i,j)$ is the extension procedure from $i$ to $j$. This procedure checks the color constraints and applies bounding for fathoming. 
-$AddLabel(\Gamma, L, k)$ is the procedure that inserts the new label $L$ into the set $\Gamma$ by applying dominance rules (Algorithm \ref{alg:addlabel}).
+For each node $i \in \mathcal{V}$, we indicate with $\Gamma_i$ the set of labels associated with the node, with $\bar{\Gamma}_i \subseteq \Gamma_i$ being the
+subset of labels not extended so far. $E$ is the set of nodes to be explored;
+$Extend$ is the extension procedure from $i$ to $j$. This procedure checks the color constraints and applies bounding for fathoming. 
+$AddLabel$ is the procedure that inserts the new label $L$ into the set $\Gamma$ by applying dominance rules (Algorithm \ref{alg:addlabel}).
 
 \begin{algorithm}
 \caption{Dominance check \& Adding Label (\texttt{AddLabel})}
@@ -253,8 +258,7 @@ $AddLabel(\Gamma, L, k)$ is the procedure that inserts the new label $L$ into th
 In our experiment, we calculated an Upper Bound (UB) using the CCDA \cite{CerroneRusso2023} and used 
 it to fathom infeasible labels.
 
-As Lower Bound (LB) we check if the cost of the label plus the lower bound calculated as the shortest path to the target node ($t$ or $s$) without constraints is greater than or equal to the calculated upper bound (UB).
-$Cost(Label) + LB \geq UB$
+As Lower Bound (LB) we check if the cost of the label plus the lower bound calculated as the shortest path to the target node ($t$ or $s$) without constraints is greater than or equal to the calculated upper bound (UB), that is, $Cost(Label) + LB \geq UB$.
 
 The Extend (\ref{alg:extend}) function checks :
 \begin{itemize}
@@ -266,12 +270,12 @@ The Extend (\ref{alg:extend}) function checks :
 \caption{Extension of the label (\texttt{Extend})}
 \label{alg:extend}
 \begin{algorithmic}[1]
-\REQUIRE $d_j, C^j, k_{max}, h_j, UB$
+\REQUIRE $d_j, C_j, k_{max}, h_j, UB$
 \STATE $H \leftarrow UB / 2.0$ 
 \IF{$d_j + h_j \ge UB$ \textbf{or} $d_j > H$}
    \RETURN $L_j \leftarrow \emptyset$
-\ELSIF{$|C^j| \le k_{max}$}
-    \RETURN $L_j \leftarrow (d^{j}, C^j)$
+\ELSIF{$|C_j| \le k_{max}$}
+    \RETURN $L_j \leftarrow (d_j, C_j)$
 \ELSE
     \RETURN $L_j \leftarrow \emptyset$
 \ENDIF
@@ -290,8 +294,8 @@ In the k-CSPP the 'set of used colors' are non-additive. This prevents us from d
 Therefore we define our half-way point denoted $H$ as half of the cost of the Upper Bound calculated with the CCDA algorithm \cite{CerroneRusso2023}.
 It is implemented in the Extend function \ref{alg:extend} where we check if the $d_j$ current distance cost of the label achieved half of the cost path. (Line 2-3).
 
-A drawback of this choice is that if the CCDA cannot find any upper bound, the bi-directional approach will double its exploration w.r.t mono-DP approach.
-A future improvement could try to mitigate this issue using alternative heuristic or bounding technique as arc-bounding.
+A drawback of this choice is that if the CCDA cannot find any upper bound, the bi-directional approach will double its exploration w.r.t the mono-DP approach.
+A future improvement could try to mitigate this issue using alternative heuristics or bounding techniques such as arc-bounding.
 \subsection{Join}
 The final phase of the bi-directional dynamic programming algorithm connects forward 
 and backward paths at an arc $(i, j)$ (Algorithm \ref{alg:join}).
@@ -440,12 +444,12 @@ GP2-40 & 152 & 1\,440 & 1\,434 & 7 & 6\,845 & N-11 & 3\,358 & 194\,577 & 194\,52
 
 \subsection{Results for DP, BDP, CPLEX, Valid Inequalities}
 
-In Table \ref{tab:numerical_results_ferone}, we show the numerical results for the benchmark instance for random and grid digraph using the Dynamic Programming procedure with the $A^*$ extraction policy (Ferone et al. 2019 \cite{Ferone2021}), 
+In Table \ref{tab:numerical_results_ferone}, we show the numerical results for the benchmark instances for random and grid digraph using the Dynamic Programming procedure with the $A^*$ extraction policy (Ferone et al. 2019 \cite{Ferone2021}), 
 CPLEX solver with the CCDA \cite{CerroneRusso2023} heuristic solution
-as a cutoff value, our implementation of the FFP model restricted to valid inequalities (17), (18), and (19) from (Castro et al. 2024\cite{Castro2024}) and finally our BDP solution.
+as a cutoff value, our implementation of the FFP model restricted to valid inequalities (17), (18), and (19) as proposed by Castro et al. (2024)\cite{Castro2024}) and finally our BDP solution.
 
 The table also reports the CCDA upper bound (\textit{ub}) calculated for every \textit{instance}. The computational time (\textit{cpu}) is reported in seconds.
-The (-) indicates the algorith reached the time limit or ran out of memory.
+The (-) indicates the algorithm reached the time limit or ran out of memory.
 Each group (R1, R3, G1, G4) is separated by horizontal line, to calculate the statistics values Average, Median, Max and Min of every group.
 
 The same legend has been used for layered-based digraph (Table \ref{tab:numerical_results_castro}) and the new-generated instances (Table \ref{tab:numerical_results_new}).
@@ -453,23 +457,23 @@ The same legend has been used for layered-based digraph (Table \ref{tab:numerica
 As already known from the literature \cite{Ferone2021} the DP algorithm performs well on average in the random/grid graph, there is some exception on some grid instance G1-27004 and G4-27000. 
 
 The BDP approach achieves similar performance on the random digraph, showing a better median values for the grids groups (G1 and G4).
-Regarding the layered-base digraphs (Table \ref{tab:numerical_results_castro})
-both the DP and BDP algorithms suffer from combinatorial explosion due to the topology of this type of the graph and the $k$ which is set as the MCPP, this forces the process to explore all the
-combination until the ends, pruning very few labels at each time.
+The layered-based digraphs (Table \ref{tab:numerical_results_castro})
+both the DP and BDP algorithms suffer from combinatorial explosion due to the topology of this type of the graph and the $k$ which is set as the MCPP, this forces the process to explore all 
+combinations to the ends, pruning very few labels at each time.
 
 With the newly generated (Table \ref{tab:numerical_results_new}) instances, because 
 the labyrinth (Figure \ref{fig:fractional_labyrinth_instance}) introduces only 1 new color per layer, 
 the DP must travel $k_{max} + 1$ layers deep into the grid before a path finally accumulates enough colors to trigger the cutoff.
-BDP enters to the labyrinth from both sides simultaneously and only does half of the work on the optimal path.
+BDP enters the labyrinth from both sides simultaneously and only does half of the work on the optimal path.
 
 The IBM CPLEX with the fixed $\textit{ub}$, turns out to be a bit slower than DP and BDP in the random graph on average, but 
-has results in a fastest execution on grid digraph. Regarding the layered-base digraph were all solved to the optimality with an average time of 26.46 seconds.
-The new instances have been resolved, but as the Graph grows in the depth, it starts to performs badly, because
+has results in a fastest execution on grid digraph. Regarding the layered-based digraph were all solved to optimality with an average time of 26.46 seconds.
+The new instances have been resolved, but as the graph grows in the depth, CPLEX starts to performs badly, because
 there are exactly $k_{max}$ colors per layer, the fractional flow passing through any specific color $h$ is exactly $1/k_{max}$.
 This forces the LP relaxation to split the unit flow of $1.0$ across the width of the grid.
 
 Concerning the B\&C strategies with Valid Inequalities, as is known from the literature \cite{Castro2024} it performs well on average both random, grid digraph and layered digraph.
-The strongest valid inequalities state that the sum of the flow on edges of color $h$ in a certain cut or non-reachable subset must be $\le y_h$ (the color activation variable). 
+The strongest valid inequalities state that the sum of the flow on arcs of color $h$ in a certain cut or non-reachable subset must be $\le y_h$ (the color activation variable). 
 CPLEX perfectly satisfies all these complex cuts by setting the fractional variable $y_h = 1/k_{max}$.
 Once CPLEX realizes the variables are fractional ($0.2$) and not binary ($0$ or $1$), it initiates the Branch-and-Bound phase. 
 However, because the grid contains millions of perfectly symmetrical paths, there is no "best direction" to branch on. 
@@ -492,10 +496,10 @@ R1--27197 & 253 & 0.0011 & 0.0061 & 0.0952 & 0.0146 \\
 R1--27199 & 333 & 0.1189 & 0.1373 & 2.4469 & 2.9082 \\
 R1--27200 & 236 & 0.0014 & 0.0062 & 0.1265 & 0.0184 \\
 \midrule
-Average & 236.2 & \textbf{0.0208} & \textbf{0.0302} & 0.5681 & 0.4991 \\
-Median & 239.0 & 0.0011 & 0.0094 & 0.1179 & 0.0180 \\
-Max & 333.0 & 0.1189 & 0.1373 & 2.4469 & 2.9082 \\
-Min & 152.0 & 0.0010 & 0.0057 & 0.0952 & 0.0146 \\
+Average & 236.2 & \textbf{0.0208} & 0.0302 & 0.5681 & 0.4991 \\
+Median & 239.0 & \textbf{0.0011} & 0.0094 & 0.1179 & 0.0180 \\
+Max & 333.0 & \textbf{0.1189} & 0.1373 & 2.4469 & 2.9082 \\
+Min & 152.0 & \textbf{0.0010} & 0.0057 & 0.0952 & 0.0146 \\
 \midrule
 R3--27004 & 246 & 0.0011 & 0.0060 & 0.1187 & 0.0173 \\
 R3--27005 & 198 & 0.0011 & 0.0058 & 0.1169 & 0.0169 \\
@@ -504,22 +508,22 @@ R3--27008 & 196 & 0.0013 & 0.0058 & 0.1366 & 0.0166 \\
 R3--27010 & 246 & 0.0012 & 0.0061 & 0.1186 & 0.0180 \\
 R3--27012 & 245 & 0.0011 & 0.0058 & 0.1226 & 0.0177 \\
 \midrule
-Average & 234.2 & \textbf{0.0021} & 0.0104 & 0.1229 & 0.0179 \\
-Median & 238.0 & 0.0011 & 0.0060 & 0.1215 & 0.0177 \\
-Max & 289.0 & 0.0098 & 0.0275 & 0.1417 & 0.0207 \\
-Min & 196.0 & 0.0011 & 0.0057 & 0.1069 & 0.0166 \\
+Average & 227.0 & \textbf{0.0011} & 0.0059 & 0.1201 & 0.0173 \\
+Median & 238.0 & \textbf{0.0011} & 0.0058 & 0.1187 & 0.0174 \\
+Max & 246.0 & \textbf{0.0013} & 0.0061 & 0.1366 & 0.0180 \\
+Min & 196.0 & \textbf{0.0011} & 0.0057 & 0.1069 & 0.0166 \\
 \midrule
 G1--27001 & 6233 & 0.0002 & 0.0007 & 0.0073 & 0.0018 \\
-G1--27003 & 6203 & 0.0026 & \textbf{0.0011} & 0.0135 & 0.0045 \\
-G1--27004 & 6375 & 45.2761 & \textbf{0.0016} & 0.0082 & 0.0027 \\
+G1--27003 & 6203 & 0.0026 & 0.0011 & 0.0135 & 0.0045 \\
+G1--27004 & 6375 & 45.2761 & 0.0016 & 0.0082 & 0.0027 \\
 G1--27007 & 6197 & 0.0007 & 0.0008 & 0.0072 & 0.0017 \\
 G1--27008 & 6193 & 0.0003 & 0.0008 & 0.0074 & 0.0017 \\
 G1--27009 & 6183 & 0.0006 & 0.0009 & 0.0080 & 0.0024 \\
 \midrule
-Average & 6205.8 & 7.0713 & 0.0331 & 0.0105 & 0.0038 \\
-Median & 6195.0 & 0.0016 & \textbf{0.0014} & 0.0080 & 0.0024 \\
-Max & 6375.0 & 45.2761 & 0.3080 & 0.0286 & 0.0154 \\
-Min & 6079.0 & 0.0002 & 0.0007 & 0.0072 & 0.0017 \\
+Average & 6230.7 & 7.5468 & \textbf{0.0010} & 0.0086 & 0.0025 \\
+Median & 6200.0 & \textbf{0.0007} & 0.0009 & 0.0077 & 0.0021 \\
+Max & 6375.0 & 45.2761 & \textbf{0.0016} & 0.0135 & 0.0045 \\
+Min & 6183.0 & \textbf{0.0002} & 0.0007 & 0.0072 & 0.0017 \\
 \midrule
 G4--27000 & 23822 & 16.3234 & 0.0267 & 0.1595 & 0.0210 \\
 G4--27004 & 23914 & 0.1367 & 127.8307 & 0.1238 & 0.0376 \\
@@ -529,9 +533,9 @@ G4--27007 & 23953 & 0.0928 & 0.0180 & 0.1225 & 0.0215 \\
 G4--27009 & 23798 & 0.3283 & 0.0162 & 0.1049 & 0.0185 \\
 \midrule
 Average & 23903.7 & 3.3817 & 23.2185 & 0.1310 & \textbf{0.0265} \\
-Median & 23927.0 & 0.1367 & \textbf{0.0383} & 0.1297 & \textbf{0.0247} \\
-Max & 23995.0 & 16.3234 & 127.8307 & 0.1595 & 0.0376 \\
-Min & 23798.0 & 0.0273 & 0.0162 & 0.1049 & 0.0185 \\
+Median & 23927.0 & 0.1367 & 0.0383 & 0.1297 & \textbf{0.0247} \\
+Max & 23995.0 & 16.3234 & 127.8307 & 0.1595 & \textbf{0.0376} \\
+Min & 23798.0 & 0.0273 & \textbf{0.0162} & 0.1049 & 0.0185 \\
 \bottomrule
 \end{tabular*}
 \end{table}
@@ -553,9 +557,9 @@ GP2-23 & 27388 & - & - & 19.4913 & 2.3121 \\
 GP2-40 & 27264 & - & - & 59.0637 & 13.7712 \\
 \midrule
 Average & 35265.7 & - & - & 26.4582 & \textbf{4.4125} \\
-Median & 27388.0 & - & - & 23.8463 & 2.3121 \\
-Max & 51145.0 & - & - & 59.0637 & 13.7712 \\
-Min & 27264.0 & - & - & 2.9353 & 1.6920 \\
+Median & 27388.0 & - & - & 23.8463 & \textbf{2.3121} \\
+Max & 51145.0 & - & - & 59.0637 & \textbf{13.7712} \\
+Min & 27264.0 & - & - & 2.9353 & \textbf{1.6920} \\
 \bottomrule
 \end{tabular*}
 \end{table}
@@ -577,24 +581,31 @@ N-10 & 460 & - & 0.0002 & 40.1596 & 16.6383 \\
 N-11 & 560 & - & 0.0003 & 377.3205 & 42.2813 \\
 \midrule
 Average & 400.0 & 0.0261 & \textbf{0.0002} & 86.0334 & 13.6319 \\
-Median  & 360.0 & 0.0261 & 0.0001 & 6.1689 & 5.6575 \\
-Max     & 560.0 & 0.0261 & 0.0003 & 377.3205 & 42.2813 \\
-Min     & 260.0 & 0.0261 & 0.0001 & 0.9947 & 1.6116 \\
+Median  & 360.0 & 0.0261 & \textbf{0.0001} & 6.1689 & 5.6575 \\
+Max     & 560.0 & 0.0261 & \textbf{0.0003} & 377.3205 & 42.2813 \\
+Min     & 260.0 & 0.0261 & \textbf{0.0001} & 0.9947 & 1.6116 \\
 \bottomrule
 \end{tabular*}
 \end{table}
 
 \section{Conclusions and future works}
-This project proposed and evaluated a bounded bi-directional dynamic programming (BDP) approach to solve the NP-hard $k$-color Shortest Path Problem ($k$-CSPP). 
+This project proposed and evaluated a bounded bi-directional dynamic programming (BDP) \cite{righini2006} approach to solve the NP-hard $k$-color Shortest Path Problem ($k$-CSPP). 
 By extending labels simultaneously from the source and destination nodes and utilizing a half-way stopping criterion based on an upper bound heuristic, the BDP algorithm effectively limits redundant label generation. 
 
-Computational experiments demonstrate that BDP maintains competitive execution times on standard random and grid graphs, often achieving better median performance than standard dynamic programming. 
-Furthermore, on newly generated labyrinth instances BDP significantly outperformed both mono-DP and Valid Inequalities by halving 
+Computational experiments (Table \ref{tab:numerical_results_ferone}) demonstrate that BDP maintains competitive execution times on standard random and grid digraphs. 
+Furthermore, on newly generated labyrinth instances BDP significantly outperformed (Table \ref{tab:numerical_results_new}) both mono-DP and Valid Inequalities by reducing 
 the required search space and quickly identifying path infeasibilities.  
-Despite these improvements, layered-based digraphs remain exceptionally challenging for dynamic programming techniques due to severe combinatorial explosion. 
+Despite these improvements, layered-based digraphs remain exceptionally challenging (Table \ref{tab:numerical_results_castro}) for dynamic programming techniques due to severe combinatorial explosion. 
 
-Future improvements could include integrating other bounding techniques like State Space Relaxation, Decremental State Space Relaxation or NG-routes relaxation that could reduce the exploration,
-even though the non-additive property of the colors is important limit to take into account. 
+Future improvements could include integrating other bounding techniques like State Space Relaxation \cite{Christofidesetal1981} or Decremental State Space Relaxation \cite{righini2006} by forcing the algorithm 
+to only track a subset of the most frequently used colors. This could help to reduce the exploration,
+even though the non-additive property of the colors is an important limit to take into account. 
+
+Additionally, the development of a hybrid approach that combines bi-directional dynamic programming 
+with Valid Inequalities. 
+Since Valid Inequalities \cite{Castro2024} demonstrated strong performance and stability across layered digraphs (Table \ref{tab:numerical_results_castro}), 
+integrating them to compute tighter bounds could 
+mitigate the combinatorial explosion that limits DP-based techniques on those specific topologies.
 \bibliography{references}
 
 \end{document}
